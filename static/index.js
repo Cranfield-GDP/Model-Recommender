@@ -2,6 +2,15 @@ const chatBody = document.getElementById('chat-body');
 const chatInput = document.getElementById('chat-input');
 const sendBtn = document.getElementById('send-btn');
 let chosenModel;
+let selectedCategory;
+let deploymentType;
+let selectedSlice;
+
+let selectedNeeds = {
+    latency: null,
+    numberOfDevices: null,
+    inputBandWidth: null
+};
 
 function appendMessage(content, sender) {
     const messageDiv = document.createElement('div');
@@ -39,10 +48,10 @@ function toggleInput(disabled) {
 
 sendBtn.addEventListener('click', () => {
     const userMessage = chatInput.value.trim();
-    if(validateEmail(userMessage) && chosenModel){
+    if(userMessage.toLowerCase() == "confirm" && chosenModel && selectedNeeds.latency){
         sendRequestToCreateServer(userMessage);
     } else if (userMessage) {
-        sendUserRequirement(userMessage);
+        sendUserRequirement(userMessage, "/chat/model");
     }
 });
 
@@ -68,21 +77,60 @@ function handleButtonClick(event) {
 
     const selectedModel = clickedButton.textContent;
     chosenModel = selectedModel;
-    appendMessage( `A server will be created with ${selectedModel} and an email will be sent to you with the details of the server` , 'bot');
-    appendMessage('Provide your email address', 'bot');
-
+    askForNeeds();
 }
 
-const validateEmail = (email) => {
-    return String(email)
-      .toLowerCase()
-      .match(
-        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|.(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
-      );
-};
+function askForNeeds() {
+    appendMessage('Please select your deployment requirements:', 'bot');
 
-const sendRequestToCreateServer = (email) =>{
-    appendMessage(email, 'user');
+    const needsContainer = document.createElement('div');
+    needsContainer.classList.add('needs-container');
+
+    const options = {
+        latency: ['<10ms', '>10ms', '>50ms', '>100ms'],
+        numberOfDevices: ['<100', '>100', '>1000'],
+        inputBandWidth: ['<1mbps', '<10mbps', '<100mbps', '<500mbps']
+    };
+
+    // Create a section for each need
+    Object.keys(options).forEach(category => {
+        const categoryDiv = document.createElement('div');
+        categoryDiv.classList.add('need-category');
+        const title = document.createElement('h4');
+        title.textContent = category;
+        categoryDiv.appendChild(title);
+
+        options[category].forEach(option => {
+            const button = document.createElement('button');
+            button.textContent = option;
+            button.addEventListener('click', () => {
+                selectedNeeds[category] = option;
+                const siblingButtons = categoryDiv.querySelectorAll('button');
+                siblingButtons.forEach(btn => {
+                    btn.disabled = true;
+                    btn.style.backgroundColor = '#008CBA';
+                    btn.style.color = 'white';
+                });
+                button.style.backgroundColor = '#4CAF50';
+                button.style.color = 'white';
+
+                if (selectedNeeds.latency && selectedNeeds.numberOfDevices && selectedNeeds.inputBandWidth) {
+                    sendDeploymentRequest();
+                }
+            });
+            categoryDiv.appendChild(button);
+        });
+
+        needsContainer.appendChild(categoryDiv);
+    });
+
+    chatBody.appendChild(needsContainer);
+    chatBody.scrollTop = chatBody.scrollHeight;
+}
+
+
+const sendRequestToCreateServer = (confirmation) =>{
+    appendMessage(confirmation, 'user');
     chatInput.value = '';
     toggleInput(true);
     fetch('/build-server', {
@@ -90,7 +138,12 @@ const sendRequestToCreateServer = (email) =>{
         headers: {
            'Content-Type': 'application/json' 
         },
-        body: JSON.stringify({ email: email, model: chosenModel })
+        body: JSON.stringify({
+            model: chosenModel, 
+            category: selectedCategory, 
+            deploymentType: deploymentType, 
+            networkSlice: selectedSlice
+        })
     }).then(() => {
         appendMessage('Preparing server and will be notified once done', 'bot');
     }).catch((error) => {
@@ -100,11 +153,11 @@ const sendRequestToCreateServer = (email) =>{
     });
 }
 
-const sendUserRequirement = (requirement) =>{
+const sendUserRequirement = (requirement, endPoint) =>{
     appendMessage(requirement, 'user');
     chatInput.value = '';
     toggleInput(true);
-    fetch('/chat', {
+    fetch(endPoint, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -113,7 +166,8 @@ const sendUserRequirement = (requirement) =>{
     })
         .then(response => response.json()) 
         .then(data => {
-            if(data.models){
+            if(data.models && data.category){
+                selectedCategory = data.category;
                 appendButton(data.models, 'bot');
             }else if (data.message) {
                 appendMessage(data.message.trim(), 'bot'); 
@@ -129,3 +183,36 @@ const sendUserRequirement = (requirement) =>{
             toggleInput(false);
         });
 };
+
+function sendDeploymentRequest() {
+    const payload = {
+        ...selectedNeeds
+    };
+
+    appendMessage('Deploying server with your selected requirements...', 'bot');
+    toggleInput(true);
+
+    fetch('/chat/deployment', {
+        method: 'POST',
+        headers: {
+           'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify(payload)
+    }).then(response => response.json())
+      .then(data => {
+        if(data.deployment && data.networkSlice){
+            deploymentType = data.deployment
+            selectedSlice = data.networkSlice
+            appendMessage(`Please type "CONFIRM" to deploy the model in "${data.deployment}" utilizing "${data.networkSlice}" network slice`, "bot");
+        }else{
+            appendMessage("An error in determining the deployment type of the model", "bot")
+        }
+      })
+      .catch(error => {
+          console.log(error);
+          appendMessage('Error deploying server. Please try again.', 'bot');
+      })
+      .finally(() => {
+          toggleInput(false);
+      });
+}

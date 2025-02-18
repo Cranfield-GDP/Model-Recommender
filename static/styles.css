@@ -129,3 +129,48 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background-color: #bbb;
 }
+
+.needs-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 15px;
+    padding: 0 10px;
+}
+
+.need-category {
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    padding: 10px;
+}
+
+.need-category h4 {
+    margin: 0 0 10px 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #333;
+    text-transform: capitalize; 
+}
+
+.need-category button {
+    margin: 5px 10px 5px 0;
+    padding: 8px 16px;
+    background-color: #008CBA;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+.need-category button:hover {
+    background-color: #005f73;
+    transform: scale(1.05);
+}
+
+.need-category button:active {
+    background-color: #003f4f;
+    transform: scale(1);
+}
