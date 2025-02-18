@@ -3,6 +3,8 @@ const chatInput = document.getElementById('chat-input');
 const sendBtn = document.getElementById('send-btn');
 let chosenModel;
 let selectedCategory;
+let deploymentType;
+let selectedSlice;
 
 let selectedNeeds = {
     latency: null,
@@ -136,7 +138,12 @@ const sendRequestToCreateServer = (confirmation) =>{
         headers: {
            'Content-Type': 'application/json' 
         },
-        body: JSON.stringify({model: chosenModel, category: selectedCategory})
+        body: JSON.stringify({
+            model: chosenModel, 
+            category: selectedCategory, 
+            deploymentType: deploymentType, 
+            networkSlice: selectedSlice
+        })
     }).then(() => {
         appendMessage('Preparing server and will be notified once done', 'bot');
     }).catch((error) => {
@@ -194,7 +201,8 @@ function sendDeploymentRequest() {
     }).then(response => response.json())
       .then(data => {
         if(data.deployment && data.networkSlice){
-            console.log("validated data")
+            deploymentType = data.deployment
+            selectedSlice = data.networkSlice
             appendMessage(`Please type "CONFIRM" to deploy the model in "${data.deployment}" utilizing "${data.networkSlice}" network slice`, "bot");
         }else{
             appendMessage("An error in determining the deployment type of the model", "bot")
