@@ -11,6 +11,10 @@ builderRouter.use(bodyParser.json());
 builderRouter.post('/', async (request, response) => {
     const reqBody = {model_name: request.body.model, task_name: request.body.category};
     const res = await axios.post(PIPELINE_ENDPOINT, reqBody);
+    if(request.body?.deploymentType?.toLowercase() == "edge"){
+        //TODO
+        //provide edge access to ue
+    }
     console.log(res);
     response.status(200);
     response.end();
